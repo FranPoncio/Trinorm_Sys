@@ -1,0 +1,203 @@
+---
+/**
+ * El armazón de la aplicación.
+ *
+ * Barra fija arriba y navegación al costado: la diferencia entre esto y una
+ * página es que en una herramienta siempre tenés que saber dónde estás y
+ * poder saltar a otra parte sin volver al principio.
+ *
+ * En pantalla angosta el lateral se convierte en una fila que scrollea, y no
+ * en un menú hamburguesa: son nueve procesos, entran, y un menú que hay que
+ * abrir para ver qué hay adentro esconde justamente lo que se viene a mirar.
+ */
+import '../styles/global.css';
+import { conBase } from '../lib/url';
+import { procesos, comoUrl, porProceso } from '../lib/sgi/normas';
+
+interface Props {
+  titulo: string;
+  descripcion: string;
+  /** Qué entrada de la navegación va marcada. */
+  activo?: string;
+}
+const { titulo, descripcion, activo } = Astro.props;
+---
+
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{titulo}</title>
+    <meta name="description" content={descripcion} />
+    <meta property="og:title" content={titulo} />
+    <meta property="og:description" content={descripcion} />
+    <meta property="og:type" content="website" />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%230f1110'/%3E%3Cpath d='M7 22V10h4l5 8 5-8h4v12' stroke='%23c08552' stroke-width='2.5' fill='none'/%3E%3C/svg%3E" />
+  </head>
+  <body>
+    <header class="barra">
+      <a class="marca" href={conBase('/')}>
+        <span class="sigla">SGI</span>
+        <span class="nombre">Trinorma</span>
+      </a>
+      <p class="lema">ISO 9001 · 14001 · 45001</p>
+      <a class="salida" href="https://franponcio.github.io/proyectos/sgi-trinorma/">
+        Sobre el proyecto ↗
+      </a>
+    </header>
+
+    <div class="cuerpo">
+      <nav class="lateral no-imprimir" aria-label="Secciones">
+        <p class="rotulo grupo">Sistema</p>
+        <a href={conBase('/')} class:list={['enlace', { activo: activo === 'tablero' }]}>
+          Tablero
+        </a>
+
+        <p class="rotulo grupo">Auditoría por proceso</p>
+        {procesos.map((p) => (
+          <a
+            href={conBase(`/auditoria/${comoUrl(p)}/`)}
+            class:list={['enlace', { activo: activo === comoUrl(p) }]}
+          >
+            {p}
+            <span class="cuenta">{porProceso(p).length}</span>
+          </a>
+        ))}
+      </nav>
+
+      <main class="principal">
+        <slot />
+
+        <footer class="pie">
+          <p>
+            <strong>Metalúrgica del Suquía S.A. no existe.</strong> Es una empresa inventada para
+            la demostración: los datos de un sistema de gestión real son del cliente o del
+            empleador y no van a un repositorio público.
+          </p>
+          <p>
+            Acá adentro no hay texto de las normas ISO. Se usan numeración y título de cláusula,
+            que son referencia factual; las preguntas de auditoría y las descripciones de
+            evidencia son propias.
+          </p>
+          <p class="firma">
+            Francisco Poncio ·
+            <a href="https://github.com/FranPoncio/Trinorm_Sys">código</a> ·
+            <a href="https://franponcio.github.io/">portfolio</a>
+          </p>
+        </footer>
+      </main>
+    </div>
+
+    <style>
+      .barra {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+        height: var(--barra);
+        display: flex;
+        align-items: center;
+        gap: 1rem;
+        padding: 0 1.1rem;
+        background: color-mix(in srgb, var(--fondo) 92%, transparent);
+        backdrop-filter: blur(8px);
+        border-bottom: 1px solid var(--borde);
+      }
+      .marca { display: flex; align-items: baseline; gap: 0.4rem; text-decoration: none; }
+      .sigla { font-weight: 700; letter-spacing: 0.02em; color: var(--acento); }
+      .nombre { font-weight: 500; }
+      .lema { font-size: 0.72rem; color: var(--tenue); letter-spacing: 0.06em; }
+      .salida {
+        margin-left: auto;
+        font-size: 0.75rem;
+        color: var(--tenue);
+        text-decoration: none;
+      }
+      .salida:hover { color: var(--acento); }
+
+      .cuerpo { display: flex; align-items: flex-start; }
+
+      .lateral {
+        position: sticky;
+        top: var(--barra);
+        flex: none;
+        width: var(--lateral);
+        max-height: calc(100vh - var(--barra));
+        overflow-y: auto;
+        padding: 1.1rem 0.7rem 2rem;
+        border-right: 1px solid var(--borde);
+      }
+      .grupo { padding: 0 0.6rem; margin: 1.2rem 0 0.5rem; }
+      .grupo:first-child { margin-top: 0; }
+      .enlace {
+        display: flex;
+        align-items: baseline;
+        gap: 0.5rem;
+        padding: 0.36rem 0.6rem;
+        border-radius: 3px;
+        font-size: 0.84rem;
+        color: var(--tenue);
+        text-decoration: none;
+      }
+      .enlace:hover { background: var(--panel); color: var(--texto); }
+      .enlace.activo {
+        background: var(--panel-alto);
+        color: var(--texto);
+        box-shadow: inset 2px 0 0 var(--acento);
+      }
+      .cuenta {
+        margin-left: auto;
+        font-size: 0.7rem;
+        color: var(--tenue);
+        font-variant-numeric: tabular-nums;
+      }
+
+      .principal {
+        flex: 1;
+        min-width: 0;
+        padding: 1.8rem 1.6rem 3rem;
+        max-width: 62rem;
+      }
+
+      .pie {
+        margin-top: 4rem;
+        padding-top: 1.4rem;
+        border-top: 1px solid var(--borde);
+        display: grid;
+        gap: 0.7rem;
+        font-size: 0.8rem;
+        line-height: 1.6;
+        color: var(--tenue);
+        max-width: 44rem;
+      }
+      .pie strong { color: var(--texto); font-weight: 600; }
+      .firma { color: var(--tenue); opacity: 0.8; }
+      .firma a { color: var(--tenue); }
+      .firma a:hover { color: var(--acento); }
+
+      @media (max-width: 860px) {
+        .cuerpo { display: block; }
+        .lateral {
+          position: static;
+          width: auto;
+          max-height: none;
+          display: flex;
+          gap: 0.3rem;
+          overflow-x: auto;
+          padding: 0.6rem 0.8rem;
+          border-right: 0;
+          border-bottom: 1px solid var(--borde);
+        }
+        .grupo { display: none; }
+        .enlace { white-space: nowrap; flex: none; }
+        .principal { padding: 1.3rem 1rem 2.5rem; }
+      }
+
+      @media print {
+        .barra, .lateral { display: none; }
+        .principal { max-width: none; padding: 0; }
+        .pie { margin-top: 2rem; }
+      }
+    </style>
+  </body>
+</html>

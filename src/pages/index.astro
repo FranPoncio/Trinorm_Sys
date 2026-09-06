@@ -1,0 +1,427 @@
+---
+/**
+ * EL TABLERO.
+ *
+ * Todo se resuelve en tiempo de compilación —el motor es una función pura
+ * sobre datos conocidos— y después el mismo motor viaja al navegador para que
+ * la máquina del tiempo y los interruptores de evidencia recalculen en vivo.
+ * Sin JavaScript se ve la foto de hoy, entera y usable.
+ */
+import App from '../layouts/App.astro';
+import { conBase } from '../lib/url';
+import { requisitos, procesos, comoUrl, porProceso } from '../lib/sgi/normas';
+import { evidenciasDemo, EMPRESA } from '../lib/sgi/demo';
+import { evaluar, resumir, ordenarHallazgos, NORMAS, AVISO_MESES } from '../lib/sgi/modelo';
+import { tarjetaNorma, tarjetaHallazgo, filaMatriz } from '../lib/sgi/vista';
+import type { Norma } from '../lib/sgi/modelo';
+
+const hoy = new Date();
+const evidencias = evidenciasDemo(hoy);
+const coberturas = requisitos.map((r) => evaluar(r, evidencias, hoy));
+const hallazgos = ordenarHallazgos(coberturas);
+
+const claves = Object.keys(NORMAS) as Norma[];
+const resumenes = claves.map((n) => resumir(coberturas, n));
+const corte = hoy.toLocaleDateString('es-AR', { day: '2-digit', month: 'long', year: 'numeric' });
+
+const tronco = requisitos.filter((r) => r.tronco).length;
+const propias = claves.map((n) => requisitos.filter((r) => !r.tronco && r.normas.includes(n)).length);
+
+// Se emiten las 45 tarjetas, no sólo los hallazgos de hoy: con la máquina del
+// tiempo corrida, un requisito cubierto puede pasar a vencido, y su tarjeta
+// tiene que estar en el HTML para no fabricarla en el navegador.
+const orden = new Map(hallazgos.map((c, i) => [c.requisito.id, i]));
+const todas = [...coberturas].sort(
+  (a, b) => (orden.get(a.requisito.id) ?? 999) - (orden.get(b.requisito.id) ?? 999),
+);
+
+// Cuántos hallazgos abiertos tiene cada área. Es lo que decide por dónde
+// empezar a auditar.
+const porArea = procesos.map((p) => {
+  const suyas = coberturas.filter((c) => c.requisito.procesos.includes(p));
+  return {
+    proceso: p,
+    total: suyas.length,
+    abiertos: suyas.filter((c) => c.estado !== 'cubierto').length,
+  };
+});
+---
+
+<App
+  titulo="Tablero · SGI Trinorma"
+  descripcion="Cobertura de ISO 9001, 14001 y 45001 sobre la evidencia de una organización, con el plan de auditoría interna."
+  activo="tablero"
+>
+  <header class="cabecera">
+    <p class="rotulo">{EMPRESA.nombre} · {EMPRESA.dotacion} personas · {EMPRESA.sitio}</p>
+    <h1>Estado del sistema de gestión</h1>
+    <p class="al">
+      Evaluado al <strong data-fecha>{corte}</strong> ·
+      {evidencias.length} evidencias cargadas · {requisitos.length} requisitos auditables
+    </p>
+  </header>
+
+  <section class="consola no-imprimir" data-consola>
+    <div class="mando">
+      <label for="tiempo">Adelantar el reloj</label>
+      <input type="range" id="tiempo" min="0" max="24" step="1" value="0" data-tiempo />
+      <output data-salida>hoy</output>
+    </div>
+    <p class="ayuda">
+      Un sistema de gestión no se rompe: se vence. Nadie hace nada mal — pasa el tiempo y los
+      registros dejan de probar el presente.
+    </p>
+
+    <details class="evidencia">
+      <summary>Apagar evidencia a mano</summary>
+      <p class="ayuda">Destildá una y mirá qué requisitos se caen.</p>
+      <div class="lista-evidencia">
+        {evidencias.map((e) => (
+          <label class="item">
+            <input type="checkbox" checked data-ev={e.id} />
+            <span class="tit">{e.titulo}</span>
+            <span class="meta">{e.proceso} · <span class="mono">{e.fecha}</span></span>
+          </label>
+        ))}
+      </div>
+      <button type="button" data-reset>Volver al estado original</button>
+    </details>
+  </section>
+
+  <section>
+    <h2 class="titulo">Cobertura por norma</h2>
+    <div class="normas" data-normas set:html={resumenes.map(tarjetaNorma).join('')} />
+    <p class="nota">
+      Es <strong>avance de implementación, no cumplimiento</strong>. Para el certificador no
+      existe el 78 %: un requisito no conforme es un hallazgo, y alcanza uno mayor para no
+      certificar.
+    </p>
+  </section>
+
+  <section>
+    <h2 class="titulo">Por dónde empezar</h2>
+    <p class="bajada">
+      Un auditor no recorre cláusulas, recorre áreas. Cada una abre su plan de jornada con las
+      preguntas y la evidencia que hay que pedir.
+    </p>
+    <ul class="areas" data-areas>
+      {porArea.map((a) => (
+        <li>
+          <a href={conBase(`/auditoria/${comoUrl(a.proceso)}/`)}>
+            <span class="n">{a.proceso}</span>
+            <span class="d" data-area={a.proceso}>
+              <b>{a.abiertos}</b> de {a.total} sin cubrir
+            </span>
+          </a>
+        </li>
+      ))}
+    </ul>
+  </section>
+
+  <section>
+    <h2 class="titulo">Un solo tronco para las tres normas</h2>
+    <div class="arbol">
+      <div class="tronco">
+        <b>{tronco}</b> requisitos comunes
+        <span>contexto · liderazgo · riesgos · competencia · documentación · auditoría · mejora</span>
+      </div>
+      <div class="ramas">
+        {claves.map((n, i) => (
+          <div class="rama" data-tono={NORMAS[n].tono}>
+            <span class="palo"></span>
+            <b>{propias[i]}</b>
+            <span>propios de {NORMAS[n].sigla}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+    <p class="nota">
+      {tronco} + {propias.join(' + ')} = <strong>{requisitos.length} requisitos</strong> para las
+      tres normas, en lugar de los {requisitos.length + tronco * 2} que costaría escribirlas por
+      separado.
+    </p>
+  </section>
+
+  <section>
+    <h2 class="titulo">Hallazgos</h2>
+    <p class="bajada">
+      Primero lo que se dejó vencer — que el sistema haya existido y se haya caído se mira peor
+      que no haberlo tenido nunca — después lo que nunca estuvo, y al final lo que está a medias.
+      La clasificación en NC mayor, NC menor y observación es una propuesta: la decide el auditor.
+    </p>
+
+    <div class="filtros no-imprimir" data-filtros>
+      <div class="grupo">
+        <span class="rotulo">Norma</span>
+        <button type="button" data-f="norma" data-v="todas" class="activo">Todas</button>
+        {claves.map((n) => <button type="button" data-f="norma" data-v={n}>{NORMAS[n].sigla}</button>)}
+      </div>
+      <div class="grupo">
+        <span class="rotulo">Estado</span>
+        <button type="button" data-f="estado" data-v="abiertos" class="activo">No cubiertos</button>
+        <button type="button" data-f="estado" data-v="vencido">Vencidos</button>
+        <button type="button" data-f="estado" data-v="sin_cubrir">Sin cubrir</button>
+        <button type="button" data-f="estado" data-v="parcial">Parciales</button>
+        <button type="button" data-f="estado" data-v="por_vencer">Por vencer</button>
+        <button type="button" data-f="estado" data-v="todos">Todo</button>
+      </div>
+      <p class="contador" data-contador>{hallazgos.length} de {requisitos.length}</p>
+    </div>
+
+    <ol class="hallazgos" data-lista set:html={todas.map(tarjetaHallazgo).join('')} />
+    <p class="vacio" data-vacio hidden>Ningún requisito con esos filtros.</p>
+  </section>
+
+  <section>
+    <h2 class="titulo">Matriz completa</h2>
+    <div class="scroll-x">
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">Cláusula</th><th scope="col">Requisito</th>
+            <th scope="col">Normas</th><th scope="col">Estado</th><th scope="col">Por qué</th>
+          </tr>
+        </thead>
+        <tbody data-matriz set:html={coberturas.map(filaMatriz).join('')} />
+      </table>
+    </div>
+    <p class="nota">
+      El aviso de vencimiento se enciende {AVISO_MESES} meses antes: es lo que tarda en armarse
+      una capacitación con evaluación de eficacia o una calibración externa.
+    </p>
+  </section>
+
+  <script>
+    import { requisitos } from '../lib/sgi/normas';
+    import { evidenciasDemo } from '../lib/sgi/demo';
+    import { evaluar, resumir, ordenarHallazgos } from '../lib/sgi/modelo';
+    import type { Norma } from '../lib/sgi/modelo';
+    import { tarjetaNorma, tarjetaHallazgo, filaMatriz } from '../lib/sgi/vista';
+
+    const $ = <T extends Element>(s: string) => document.querySelector<T>(s);
+    const consola = $('[data-consola]');
+    const cajaNormas = $('[data-normas]');
+    const lista = $('[data-lista]');
+    const matriz = $('[data-matriz]');
+    const contador = $('[data-contador]');
+    const vacio = $<HTMLElement>('[data-vacio]');
+    const salida = $('[data-salida]');
+    const fecha = $('[data-fecha]');
+    const barra = $<HTMLInputElement>('[data-tiempo]');
+    const filtros = $('[data-filtros]');
+    const areas = $('[data-areas]');
+
+    if (consola && cajaNormas && lista && matriz && contador && vacio && salida && fecha && barra && filtros) {
+      const HOY = new Date();
+      const base = evidenciasDemo(HOY);
+      const apagadas = new Set<string>();
+      const filtro = { norma: 'todas', estado: 'abiertos' };
+      let adelanto = 0;
+
+      const visible = (estado: string, porVencer: boolean) =>
+        filtro.estado === 'todos' ? true
+        : filtro.estado === 'abiertos' ? estado !== 'cubierto'
+        : filtro.estado === 'por_vencer' ? porVencer
+        : estado === filtro.estado;
+
+      function pintar() {
+        const cuando = new Date(
+          Date.UTC(HOY.getUTCFullYear(), HOY.getUTCMonth() + adelanto, Math.min(HOY.getUTCDate(), 28)),
+        );
+        const evidencias = base.filter((e) => !apagadas.has(e.id));
+        const coberturas = requisitos.map((r) => evaluar(r, evidencias, cuando));
+
+        cajaNormas!.innerHTML = (['9001', '14001', '45001'] as Norma[])
+          .map((n) => tarjetaNorma(resumir(coberturas, n)))
+          .join('');
+
+        const abiertos = ordenarHallazgos(coberturas);
+        const posicion = new Map(abiertos.map((c, i) => [c.requisito.id, i]));
+        const ordenadas = [...coberturas].sort(
+          (a, b) => (posicion.get(a.requisito.id) ?? 999) - (posicion.get(b.requisito.id) ?? 999),
+        );
+        lista!.innerHTML = ordenadas.map(tarjetaHallazgo).join('');
+
+        let vistos = 0;
+        for (const c of ordenadas) {
+          const li = lista!.querySelector<HTMLElement>(`[data-id="${CSS.escape(c.requisito.id)}"]`);
+          if (!li) continue;
+          const ok =
+            (filtro.norma === 'todas' || c.requisito.normas.includes(filtro.norma as Norma)) &&
+            visible(c.estado, c.porVencer);
+          li.hidden = !ok;
+          if (ok) vistos++;
+        }
+        contador!.textContent = `${vistos} de ${requisitos.length}`;
+        vacio!.hidden = vistos > 0;
+
+        matriz!.innerHTML = coberturas.map(filaMatriz).join('');
+
+        // La lista de áreas también se recalcula: si no, al correr el reloj
+        // diría que Compras tiene 1 hallazgo mientras el tablero muestra 3.
+        if (areas) {
+          for (const nodo of areas.querySelectorAll<HTMLElement>('[data-area]')) {
+            const p = nodo.dataset.area!;
+            const suyas = coberturas.filter((c) => c.requisito.procesos.includes(p));
+            const ab = suyas.filter((c) => c.estado !== 'cubierto').length;
+            nodo.innerHTML = `<b>${ab}</b> de ${suyas.length} sin cubrir`;
+          }
+        }
+
+        fecha!.textContent = cuando.toLocaleDateString('es-AR', {
+          day: '2-digit', month: 'long', year: 'numeric',
+        });
+        salida!.textContent = adelanto === 0 ? 'hoy' : adelanto === 1 ? '1 mes' : `${adelanto} meses`;
+      }
+
+      barra.addEventListener('input', () => { adelanto = Number(barra.value); pintar(); });
+
+      consola.addEventListener('change', (ev) => {
+        const casilla = (ev.target as HTMLElement).closest<HTMLInputElement>('input[data-ev]');
+        if (!casilla) return;
+        casilla.checked ? apagadas.delete(casilla.dataset.ev!) : apagadas.add(casilla.dataset.ev!);
+        pintar();
+      });
+
+      consola.querySelector('[data-reset]')?.addEventListener('click', () => {
+        apagadas.clear();
+        adelanto = 0;
+        barra.value = '0';
+        for (const c of consola.querySelectorAll<HTMLInputElement>('input[data-ev]')) c.checked = true;
+        pintar();
+      });
+
+      filtros.addEventListener('click', (ev) => {
+        const boton = (ev.target as HTMLElement).closest<HTMLButtonElement>('button[data-f]');
+        if (!boton) return;
+        const campo = boton.dataset.f as 'norma' | 'estado';
+        filtro[campo] = boton.dataset.v!;
+        for (const otro of filtros.querySelectorAll(`button[data-f="${campo}"]`)) {
+          otro.classList.toggle('activo', otro === boton);
+        }
+        pintar();
+      });
+
+      pintar();
+    }
+  </script>
+
+  <style>
+    .cabecera { margin-bottom: 1.8rem; }
+    .cabecera h1 { font-size: 1.5rem; margin: 0.35rem 0 0.4rem; }
+    .al { font-size: 0.82rem; color: var(--tenue); }
+    .al strong { color: var(--texto); font-weight: 500; }
+
+    section { margin-bottom: 2.6rem; }
+    .titulo {
+      font-size: 0.7rem;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--tenue);
+      padding-bottom: 0.55rem;
+      border-bottom: 1px solid var(--borde);
+      margin-bottom: 1.1rem;
+      font-weight: 500;
+    }
+    .bajada { font-size: 0.86rem; color: var(--tenue); line-height: 1.6; margin-bottom: 1.1rem; max-width: 44rem; }
+    .nota {
+      margin-top: 1rem;
+      font-size: 0.82rem;
+      line-height: 1.6;
+      color: var(--tenue);
+      border-left: 2px solid var(--borde-vivo);
+      padding-left: 0.8rem;
+      max-width: 44rem;
+    }
+    .nota strong { color: var(--texto); }
+
+    .consola {
+      border: 1px solid var(--borde-vivo);
+      background: var(--panel);
+      border-radius: 4px;
+      padding: 1rem 1.1rem;
+      margin-bottom: 2.2rem;
+    }
+    .mando { display: flex; align-items: center; gap: 0.9rem; flex-wrap: wrap; }
+    .mando label { font-size: 0.66rem; letter-spacing: 0.14em; text-transform: uppercase; color: var(--tenue); }
+    .mando input[type='range'] { flex: 1; min-width: 11rem; accent-color: var(--acento); cursor: pointer; }
+    .mando output {
+      min-width: 5rem; text-align: right; font-weight: 600;
+      color: var(--acento); font-variant-numeric: tabular-nums;
+    }
+    .ayuda { font-size: 0.8rem; color: var(--tenue); line-height: 1.55; margin-top: 0.6rem; max-width: 42rem; }
+    .evidencia { margin-top: 0.9rem; border-top: 1px solid var(--borde); padding-top: 0.8rem; }
+    .evidencia summary { font-size: 0.78rem; color: var(--tenue); cursor: pointer; }
+    .evidencia summary:hover { color: var(--acento); }
+    .lista-evidencia {
+      display: grid; gap: 0.08rem; max-height: 17rem; overflow-y: auto;
+      border: 1px solid var(--borde); border-radius: 3px; padding: 0.4rem; margin-top: 0.7rem;
+    }
+    .item {
+      display: grid; grid-template-columns: auto 1fr auto; gap: 0.55rem;
+      align-items: baseline; padding: 0.28rem 0.35rem; border-radius: 2px;
+      cursor: pointer; font-size: 0.78rem;
+    }
+    .item:hover { background: var(--panel-alto); }
+    .item input { accent-color: var(--acento); cursor: pointer; }
+    .item input:not(:checked) ~ .tit { color: var(--tenue); text-decoration: line-through; }
+    .item .meta { font-size: 0.68rem; color: var(--tenue); white-space: nowrap; }
+    [data-reset] {
+      margin-top: 0.8rem; font-size: 0.74rem; background: transparent; color: var(--tenue);
+      border: 1px solid var(--borde); padding: 0.28rem 0.75rem; border-radius: 2px; cursor: pointer;
+    }
+    [data-reset]:hover { color: var(--texto); border-color: var(--borde-vivo); }
+
+    .normas { display: grid; grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr)); gap: 0.8rem; }
+
+    .areas { list-style: none; display: grid; grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr)); gap: 0.5rem; }
+    .areas a {
+      display: flex; justify-content: space-between; align-items: baseline; gap: 0.8rem;
+      padding: 0.65rem 0.85rem; border: 1px solid var(--borde); border-radius: 3px;
+      background: var(--panel); text-decoration: none; font-size: 0.86rem;
+    }
+    .areas a:hover { border-color: var(--borde-vivo); background: var(--panel-alto); }
+    .areas .d { font-size: 0.75rem; color: var(--tenue); white-space: nowrap; }
+    .areas .d b { color: var(--acento); font-weight: 600; }
+
+    .arbol { display: grid; gap: 0; }
+    .tronco {
+      border: 1px solid var(--borde-vivo); background: var(--panel);
+      border-radius: 3px; padding: 0.85rem 1rem; text-align: center; font-size: 0.86rem;
+    }
+    .tronco b { font-size: 1.35rem; font-weight: 500; margin-right: 0.35rem; }
+    .tronco span { display: block; margin-top: 0.35rem; font-size: 0.7rem; color: var(--tenue); }
+    .ramas { display: grid; grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr)); gap: 0.8rem; }
+    .rama { --c: var(--datos); display: flex; flex-direction: column; align-items: center; text-align: center; }
+    .rama[data-tono='herramienta'] { --c: var(--herramienta); }
+    .rama[data-tono='acento'] { --c: var(--acento); }
+    .rama .palo { width: 1px; height: 1.2rem; background: var(--borde-vivo); }
+    .rama b { font-size: 1.15rem; font-weight: 500; color: var(--c); margin-top: 0.35rem; }
+    .rama span { font-size: 0.74rem; color: var(--tenue); }
+
+    .filtros {
+      display: flex; flex-wrap: wrap; gap: 1.1rem; align-items: center;
+      padding-bottom: 0.9rem; margin-bottom: 1.1rem; border-bottom: 1px solid var(--borde);
+    }
+    .filtros .grupo { display: flex; align-items: center; gap: 0.3rem; flex-wrap: wrap; }
+    .filtros .rotulo { margin-right: 0.2rem; }
+    .filtros button {
+      font-size: 0.74rem; background: transparent; color: var(--tenue);
+      border: 1px solid var(--borde); padding: 0.24rem 0.62rem; border-radius: 2px; cursor: pointer;
+    }
+    .filtros button:hover { border-color: var(--borde-vivo); color: var(--texto); }
+    .filtros button.activo { color: var(--fondo); background: var(--texto); border-color: var(--texto); }
+    .contador { margin-left: auto; font-size: 0.72rem; color: var(--tenue); }
+
+    .hallazgos { display: grid; gap: 0.6rem; list-style: none; }
+    .vacio { font-size: 0.85rem; color: var(--tenue); padding: 1.6rem 0; }
+
+    .scroll-x { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.81rem; min-width: 42rem; }
+    th {
+      text-align: left; font-size: 0.62rem; letter-spacing: 0.12em; text-transform: uppercase;
+      color: var(--tenue); font-weight: 500; padding: 0 0.65rem 0.5rem;
+      border-bottom: 1px solid var(--borde);
+    }
+  </style>
+</App>

@@ -1,0 +1,106 @@
+@import '@fontsource-variable/roboto';
+
+/*
+ * La app comparte la paleta del portfolio a propósito —es del mismo autor y
+ * se llega desde ahí— pero NO su composición. El portfolio es una página que
+ * se lee de arriba a abajo; esto es una herramienta que se usa: barra fija,
+ * navegación al costado, densidad más alta y nada que se mueva sin motivo.
+ */
+
+:root {
+  --fondo: #0f1110;
+  --panel: #181b19;
+  --panel-alto: #212623;
+  --borde: #2b312d;
+  --borde-vivo: #454e49;
+  --texto: #dfdcd4;
+  --tenue: #8e968f;
+
+  --acento: #c08552;      /* vencido, y el color de la marca */
+  --datos: #6fa39c;       /* ISO 9001 */
+  --herramienta: #7f9a63; /* ISO 14001, y lo cubierto */
+  --gestion: #b8964f;     /* sin cubrir, y el aviso de vencimiento */
+  --ruta: #5d7f9c;        /* parcial */
+
+  --fuente: 'Roboto Variable', system-ui, ui-sans-serif, sans-serif;
+  --barra: 3.25rem;
+  --lateral: 15rem;
+
+  color-scheme: dark;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+* { margin: 0; padding: 0; }
+
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  font-family: var(--fuente);
+  background: var(--fondo);
+  color: var(--texto);
+  font-size: 15px;
+  line-height: 1.5;
+  min-height: 100vh;
+}
+
+/* La trama de plano. Es lo único decorativo que queda, y está fija: no se
+   mueve al hacer scroll, así que no compite con el contenido. */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background-image:
+    linear-gradient(to right, rgba(255, 255, 255, 0.022) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(255, 255, 255, 0.022) 1px, transparent 1px);
+  background-size: 44px 44px;
+}
+
+h1, h2, h3, h4 { font-weight: 600; line-height: 1.2; }
+a { color: inherit; }
+button, input, select { font: inherit; }
+
+/* Foco visible. En una herramienta que se recorre con teclado esto no es un
+   detalle: es la diferencia entre poder usarla y no. */
+:focus-visible {
+  outline: 2px solid var(--acento);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+.rotulo {
+  font-size: 0.66rem;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: var(--tenue);
+}
+
+.mono { font-variant-numeric: tabular-nums; }
+
+/* Chapas de estado, compartidas por todas las vistas. */
+.chip, .clase {
+  font-size: 0.62rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 0.16rem 0.5rem;
+  border-radius: 2px;
+  border: 1px solid currentColor;
+  white-space: nowrap;
+  display: inline-block;
+}
+.chip.cubierto { color: var(--herramienta); }
+.chip.parcial { color: var(--ruta); }
+.chip.vencido { color: var(--acento); }
+.chip.sin_cubrir { color: var(--gestion); }
+.clase { border-style: dashed; }
+.clase.mayor { color: var(--acento); }
+.clase.menor { color: var(--ruta); }
+.clase.observacion { color: var(--gestion); }
+
+@media print {
+  body::before { display: none; }
+  body { background: #fff; color: #000; font-size: 11pt; }
+  .no-imprimir { display: none !important; }
+  a { text-decoration: none; }
+}
