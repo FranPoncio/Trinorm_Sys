@@ -1,0 +1,306 @@
+---
+/**
+ * EL DÍA DE AUDITORÍA.
+ *
+ * Ésta es la pantalla que justifica todo lo demás. El tablero dice cómo está
+ * el sistema; esto dice qué hacés mañana a las nueve de la mañana cuando te
+ * sentás con Compras.
+ *
+ * Por eso está armada como un documento de trabajo y no como un panel: las
+ * preguntas van desplegadas —no escondidas en un acordeón, porque las vas
+ * leyendo mientras hablás—, cada requisito tiene su casilla para tildar, y la
+ * hoja imprime en papel sin la navegación. La mitad de las auditorías internas
+ * se siguen haciendo con una carpeta en la mano.
+ *
+ * El orden no es por número de cláusula sino por riesgo: primero lo que se
+ * dejó vencer, después lo que nunca estuvo, después lo que está a medias, y al
+ * final lo cubierto —que igual se audita, pero si el tiempo se acaba es lo
+ * primero que se recorta.
+ */
+import type { GetStaticPaths } from 'astro';
+import App from '../../layouts/App.astro';
+import { conBase } from '../../lib/url';
+import { requisitos, procesos, comoUrl } from '../../lib/sgi/normas';
+import { evidenciasDemo, EMPRESA } from '../../lib/sgi/demo';
+import { evaluar, NORMAS } from '../../lib/sgi/modelo';
+import { ETIQUETA, ETIQUETA_CLASE, cuandoVence } from '../../lib/sgi/vista';
+import type { Estado } from '../../lib/sgi/modelo';
+
+export const getStaticPaths = (async () =>
+  procesos.map((p) => ({ params: { proceso: comoUrl(p) }, props: { proceso: p } }))) satisfies GetStaticPaths;
+
+const { proceso } = Astro.props;
+
+const hoy = new Date();
+const evidencias = evidenciasDemo(hoy);
+const suyos = requisitos.filter((r) => r.procesos.includes(proceso));
+
+const PESO: Record<Estado, number> = { vencido: 0, sin_cubrir: 1, parcial: 2, cubierto: 3 };
+const agenda = suyos
+  .map((r) => evaluar(r, evidencias, hoy))
+  .sort(
+    (a, b) =>
+      PESO[a.estado] - PESO[b.estado] ||
+      a.requisito.clausula.localeCompare(b.requisito.clausula, 'es', { numeric: true }),
+  );
+
+const abiertos = agenda.filter((c) => c.estado !== 'cubierto').length;
+const preguntas = agenda.reduce((a, c) => a + c.requisito.preguntas.length, 0);
+
+/* Quién tiene los papeles de esta área. Sale de la evidencia ya cargada, así
+   que es a quién hay que convocar, no una lista de cargos inventada. */
+const gente = [
+  ...new Set(evidencias.filter((e) => e.proceso === proceso).map((e) => e.responsable)),
+].sort();
+
+/* Las normas que efectivamente se tocan en esta jornada. Decirle a Compras
+   que "se audita la trinorma" es cierto y no sirve; decirle que se le va a
+   preguntar de calidad y de seguridad, sí. */
+const normasTocadas = [...new Set(agenda.flatMap((c) => c.requisito.normas))].sort();
+
+const fecha = hoy.toLocaleDateString('es-AR', { day: '2-digit', month: 'long', year: 'numeric' });
+---
+
+<App
+  titulo={`Auditoría de ${proceso} · SGI Trinorma`}
+  descripcion={`Plan de jornada para auditar ${proceso}: cláusulas aplicables, preguntas y evidencia a solicitar.`}
+  activo={comoUrl(proceso)}
+>
+  <header class="cabecera">
+    <p class="rotulo">Plan de auditoría interna · jornada</p>
+    <h1>{proceso}</h1>
+    <dl class="hoja">
+      <div><dt>Organización</dt><dd>{EMPRESA.nombre}</dd></div>
+      <div><dt>Fecha</dt><dd>{fecha}</dd></div>
+      <div><dt>Normas en esta jornada</dt><dd>{normasTocadas.map((n) => NORMAS[n].sigla).join(' · ')}</dd></div>
+      <div>
+        <dt>A convocar</dt>
+        <dd>{gente.length ? gente.join(', ') : <span class="ojo">Nadie del área tiene evidencia cargada — empezar por ahí.</span>}</dd>
+      </div>
+      <div>
+        <dt>Alcance</dt>
+        <dd>{agenda.length} requisitos · <strong>{abiertos} sin cubrir</strong> · {preguntas} preguntas</dd>
+      </div>
+    </dl>
+    <p class="criterio">
+      El orden es por riesgo, no por número de cláusula: primero lo que se dejó vencer, después lo
+      que nunca estuvo, después lo que está a medias. Lo cubierto va al final — se verifica igual,
+      pero si el tiempo se acorta es lo primero que se recorta.
+    </p>
+    <p class="no-imprimir acciones">
+      <button type="button" onclick="window.print()">Imprimir la jornada</button>
+      <a href={conBase('/')}>← Volver al tablero</a>
+    </p>
+  </header>
+
+  <ol class="agenda">
+    {agenda.map((c, i) => (
+      <li class="parada" data-estado={c.estado}>
+        <header>
+          <span class="num">{String(i + 1).padStart(2, '0')}</span>
+          <span class="clausula mono">{c.requisito.clausula}</span>
+          <h2>{c.requisito.titulo}</h2>
+          <span class="sellos">
+            {c.clase && <span class={`clase ${c.clase}`}>{ETIQUETA_CLASE[c.clase]}</span>}
+            {!c.clase && c.porVencer && <span class="clase observacion">{ETIQUETA_CLASE.observacion}</span>}
+            <span class={`chip ${c.estado}`}>{ETIQUETA[c.estado]}</span>
+          </span>
+        </header>
+
+        <p class="normas">
+          {c.requisito.tronco
+            ? 'Tronco común · aplica a las tres normas'
+            : c.requisito.normas.map((n) => NORMAS[n].sigla).join(', ')}
+          {c.requisito.procesos.length > 1 && (
+            <span class="compartido">
+              · compartido con {c.requisito.procesos.filter((p) => p !== proceso).join(' y ')}
+            </span>
+          )}
+        </p>
+
+        <p class="motivo">{c.motivo}</p>
+        {c.porVencer && c.mesesAlVencimiento !== undefined && (
+          <p class="aviso">Está cubierto, pero la primera evidencia se cae {cuandoVence(c.mesesAlVencimiento)}.</p>
+        )}
+
+        <div class="dos">
+          <div class="bloque">
+            <h3>Qué preguntar</h3>
+            <ul class="preguntas">
+              {c.requisito.preguntas.map((p) => (
+                <li><span class="tilde" aria-hidden="true"></span>{p}</li>
+              ))}
+            </ul>
+          </div>
+
+          <div class="bloque">
+            <h3>Qué evidencia pedir</h3>
+            <ul class="evidencias">
+              {c.requisito.evidencias.map((e) => {
+                const aportan = c.aportan[e.clave] ?? [];
+                return (
+                  <li class={aportan.length ? 'hay' : 'falta'}>
+                    <span class="tilde" aria-hidden="true"></span>
+                    <span class={`tipo ${e.tipo}`}>{e.tipo}</span>
+                    {e.descripcion}
+                    {aportan.length > 0 ? (
+                      <span class="tiene">
+                        {aportan.map((a) => (
+                          <span class="doc">{a.titulo} <span class="mono">{a.fecha}</span> · {a.responsable}</span>
+                        ))}
+                      </span>
+                    ) : (
+                      <span class="nohay">No hay nada vigente que cubra esto.</span>
+                    )}
+                  </li>
+                );
+              })}
+            </ul>
+            {c.caducas.length > 0 && (
+              <div class="caducas">
+                <h4>Cargado pero ya no prueba</h4>
+                <ul>
+                  {c.caducas.map((e) => (
+                    <li>{e.titulo} <span class="mono">{e.fecha}</span> · {e.responsable}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div class="notas no-pantalla">
+          <span>Observaciones</span>
+          <div class="renglones"></div>
+        </div>
+      </li>
+    ))}
+  </ol>
+
+  <style>
+    .cabecera { margin-bottom: 2rem; }
+    .cabecera h1 { font-size: 1.6rem; margin: 0.3rem 0 1rem; }
+
+    .hoja { display: grid; gap: 0; max-width: 44rem; }
+    .hoja > div {
+      display: grid;
+      grid-template-columns: minmax(8rem, 11rem) 1fr;
+      gap: 1rem;
+      padding: 0.5rem 0;
+      border-bottom: 1px solid var(--borde);
+      font-size: 0.85rem;
+    }
+    .hoja dt { color: var(--tenue); }
+    .hoja dd strong { color: var(--acento); font-weight: 600; }
+    .ojo { color: var(--gestion); }
+
+    .criterio {
+      margin-top: 1rem;
+      font-size: 0.82rem;
+      line-height: 1.6;
+      color: var(--tenue);
+      border-left: 2px solid var(--borde-vivo);
+      padding-left: 0.8rem;
+      max-width: 44rem;
+    }
+    .acciones { margin-top: 1.2rem; display: flex; gap: 1rem; align-items: center; }
+    .acciones button {
+      font-size: 0.78rem; background: var(--panel-alto); color: var(--texto);
+      border: 1px solid var(--borde-vivo); padding: 0.35rem 0.9rem;
+      border-radius: 3px; cursor: pointer;
+    }
+    .acciones button:hover { border-color: var(--acento); color: var(--acento); }
+    .acciones a { font-size: 0.78rem; color: var(--tenue); text-decoration: none; }
+    .acciones a:hover { color: var(--acento); }
+
+    .agenda { list-style: none; display: grid; gap: 0.9rem; }
+    .parada {
+      border: 1px solid var(--borde);
+      border-left: 3px solid var(--borde-vivo);
+      background: var(--panel);
+      border-radius: 3px;
+      padding: 1rem 1.15rem;
+    }
+    .parada[data-estado='vencido'] { border-left-color: var(--acento); }
+    .parada[data-estado='sin_cubrir'] { border-left-color: var(--gestion); }
+    .parada[data-estado='parcial'] { border-left-color: var(--ruta); }
+    .parada[data-estado='cubierto'] { border-left-color: var(--herramienta); }
+
+    .parada > header {
+      display: flex; align-items: baseline; gap: 0.6rem; flex-wrap: wrap; margin-bottom: 0.5rem;
+    }
+    .num {
+      font-size: 0.72rem; color: var(--tenue); font-variant-numeric: tabular-nums;
+      border: 1px solid var(--borde); border-radius: 2px; padding: 0.08rem 0.35rem;
+    }
+    .clausula { font-size: 0.82rem; color: var(--tenue); }
+    .parada h2 { font-size: 0.98rem; flex: 1; min-width: 12rem; }
+    .sellos { display: flex; gap: 0.35rem; flex-wrap: wrap; }
+
+    .normas { font-size: 0.72rem; color: var(--tenue); margin-bottom: 0.5rem; }
+    .compartido { opacity: 0.8; }
+    .motivo { font-size: 0.84rem; color: var(--tenue); margin-bottom: 0.5rem; }
+    .aviso {
+      font-size: 0.82rem; color: var(--gestion);
+      border-left: 2px solid var(--gestion); padding-left: 0.7rem; margin-bottom: 0.7rem;
+    }
+
+    .dos { display: grid; grid-template-columns: 1fr 1fr; gap: 1.4rem; margin-top: 0.9rem; }
+    @media (max-width: 780px) { .dos { grid-template-columns: 1fr; gap: 1rem; } }
+
+    .bloque h3 {
+      font-size: 0.62rem; letter-spacing: 0.13em; text-transform: uppercase;
+      color: var(--tenue); margin-bottom: 0.5rem; font-weight: 500;
+    }
+    .preguntas, .evidencias { list-style: none; display: grid; gap: 0.5rem; }
+    .preguntas li, .evidencias li {
+      position: relative; padding-left: 1.4rem; font-size: 0.85rem; line-height: 1.5;
+    }
+    /* La casilla para tildar durante la auditoría. Es un cuadrado dibujado,
+       no un <input>: en papel se tilda con lapicera, y en pantalla no hay que
+       guardar estado de algo que dura una mañana. */
+    .tilde {
+      position: absolute; left: 0; top: 0.28em;
+      width: 0.78rem; height: 0.78rem;
+      border: 1px solid var(--borde-vivo); border-radius: 2px;
+    }
+    .evidencias .hay { color: color-mix(in srgb, var(--texto) 82%, transparent); }
+    .evidencias .falta { color: var(--texto); }
+    .tipo {
+      font-size: 0.58rem; letter-spacing: 0.08em; text-transform: uppercase;
+      padding: 0.08rem 0.32rem; border-radius: 2px; margin-right: 0.4rem;
+      background: var(--panel-alto); color: var(--tenue);
+    }
+    .tipo.registro { color: var(--acento); }
+    .tiene, .nohay { display: block; margin-top: 0.25rem; font-size: 0.76rem; }
+    .doc { display: block; color: var(--tenue); }
+    .nohay { color: var(--gestion); }
+
+    .caducas { margin-top: 0.8rem; }
+    .caducas h4 {
+      font-size: 0.6rem; letter-spacing: 0.12em; text-transform: uppercase;
+      color: var(--acento); margin-bottom: 0.35rem; font-weight: 500;
+    }
+    .caducas ul { list-style: none; display: grid; gap: 0.25rem; }
+    .caducas li { font-size: 0.78rem; color: var(--tenue); padding-left: 0.7rem; border-left: 1px solid var(--borde); }
+
+    /* El espacio para escribir a mano sólo existe en papel. */
+    .no-pantalla { display: none; }
+
+    @media print {
+      .parada {
+        border: 1px solid #bbb; border-left-width: 3px;
+        background: none; break-inside: avoid; margin-bottom: 0.5rem;
+      }
+      .parada h2, .hoja dd, .evidencias .falta { color: #000; }
+      .motivo, .normas, .clausula, .num, .doc, .caducas li, .criterio { color: #444; }
+      .tilde { border-color: #666; }
+      .no-pantalla { display: block; margin-top: 0.8rem; }
+      .notas span {
+        font-size: 0.58rem; letter-spacing: 0.12em; text-transform: uppercase; color: #666;
+      }
+      .renglones { border-bottom: 1px solid #ccc; height: 1.1rem; margin-top: 0.9rem; }
+      .renglones::after { content: ''; display: block; border-bottom: 1px solid #ccc; height: 1.1rem; margin-top: 1.1rem; }
+    }
+  </style>
+</App>
