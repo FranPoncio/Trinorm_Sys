@@ -30,6 +30,24 @@ Ese orden es el producto.
 Lo que ya está construido va en la otra dirección y es el cimiento correcto:
 llevar la cuenta de la evidencia, que es el problema que nadie resuelve bien.
 
+## Estado
+
+Funciona y está publicado, pero es una demostración: la evidencia es la de la
+empresa ficticia. Al cierre de la última sesión falta, en este orden:
+
+- **Cargar evidencia propia.** Hoy sólo se prende y apaga la de la demo.
+  Necesita backend y autenticación.
+- **El informe de auditoría redactado y firmable.** El plan sale del motor;
+  falta convertirlo en el documento que se entrega.
+- **El ciclo de no conformidades completo**: causa raíz, acción, verificación
+  de eficacia.
+- **Requisitos legales por jurisdicción** — las matrices de ambiente y
+  seguridad dependen de la provincia y del municipio.
+- **El agente que lee el proceso y genera documentación.** Leer antes la
+  sección "Adónde va": las preguntas van primero, la redacción después.
+
+**Al terminar una sesión, actualizá estas líneas.**
+
 ## Dónde está cada cosa
 
 ```
