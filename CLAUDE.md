@@ -66,8 +66,14 @@ src/layouts/App.astro   barra fija y navegacion lateral
 npm install
 npm run dev      # http://localhost:4321/Trinorm_Sys/
 npm test         # runner de Node, sin dependencias — 68 tests
+npm run check    # astro check (tipos)
 npm run build
+npm run preview
 ```
+
+**`npm run check` no lo corre el deploy.** El workflow publica si `npm test`
+pasa, y nada más: un error de tipos llega a producción sin que nadie lo frene.
+Corrélo a mano antes de dar algo por terminado.
 
 ## Lo que hay que saber antes de tocar
 
