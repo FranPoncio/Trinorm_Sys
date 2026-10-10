@@ -48,6 +48,33 @@ de los 87 que costaría escribirlas por separado.
 
 ## Qué se puede hacer
 
+### La herramienta (`/app/`)
+
+Cargás una organización —o probás con un ejemplo ficticio— y la herramienta
+te lleva hasta la auditoría de certificación:
+
+1. **Entrevista.** Contás cómo trabaja la organización, en tus palabras. Las
+   preguntas son propias y las puede contestar quien conoce el negocio, no
+   sólo quien conoce la norma.
+2. **Documentos.** Con las respuestas arma 28 documentos (política, manual,
+   procedimientos, matrices, planes) y 8 formularios, para ISO 9001, 14001 y
+   45001, con el tronco común escrito una sola vez. **No inventa nada**: lo que
+   no contaste queda marcado como `⟦COMPLETAR⟧`, y un documento con marcas no
+   se puede aprobar.
+3. **Edición con versiones.** Cambiás lo que quieras, volvés a una versión
+   anterior, regenerás desde la entrevista sin perder tus ediciones. Editar un
+   documento aprobado le quita la aprobación.
+4. **Evidencia.** El mismo motor de la demo dice qué requisito está cubierto,
+   cuál se venció y qué papel falta. Un documento cuenta cuando está aprobado;
+   un registro, cuando lo cargás con su fecha.
+5. **Ruta de certificación.** Diez etapas, de definir el alcance a la
+   vigilancia anual, con el siguiente paso concreto en cada una.
+
+**Tus datos no salen del navegador.** No hay servidor ni cuenta. Se pueden
+exportar e importar como respaldo.
+
+### La demostración (`/`)
+
 - **La máquina del tiempo.** Adelantás hasta 24 meses y los registros se
   vencen solos: 78/69/68 % pasa a 40/40/37 % en un año sin que nadie haga nada
   mal. Un test fija esa propiedad — sin cargar evidencia nueva, correr el
@@ -64,6 +91,9 @@ de los 87 que costaría escribirlas por separado.
 Se usan numeración y título de cláusula, que son referencia factual; las 98
 preguntas de auditoría y las 88 descripciones de evidencia son propias.
 
+**No hay datos de nadie.** La herramienta guarda lo que cargues sólo en tu
+navegador. La organización de ejemplo que trae también es inventada.
+
 **La empresa de la demo no existe.** Metalúrgica del Suquía S.A. es una PyME
 inventada: los datos de un sistema de gestión real son del cliente o del
 empleador y no van a un repositorio público. Además, una demo con todo en
@@ -74,8 +104,10 @@ motor distingue.
 
 ```bash
 npm install
-npm run dev      # http://localhost:4321/Trinorm_Sys/
-npm test         # runner de Node, sin dependencias
+npm run dev      # http://localhost:4321/Trinorm_Sys/       (la demo)
+                 # http://localhost:4321/Trinorm_Sys/app/   (la herramienta)
+npm test         # runner de Node, sin dependencias — 241 tests
+npm run check    # tipos
 npm run build
 ```
 
@@ -87,22 +119,30 @@ src/lib/sgi/
   normas.ts    el corpus: 45 requisitos, y qué área responde por cada uno.
   demo.ts      la empresa ficticia. Fechas relativas al build, no fijas.
   vista.ts     plantillas HTML compartidas entre el build y el navegador.
+  organizacion.ts / entrevista.ts / generador.ts / plantillas.ts
+  ruta.ts / almacen.ts / markdown.ts / ejemplo.ts    la herramienta
+src/app/
+  vistas.ts    las pantallas, como funciones puras de texto
+  main.ts      rutas, guardado y acciones
 src/pages/
-  index.astro              el tablero
+  index.astro              el tablero (la demo)
   auditoria/[proceso].astro  la jornada de auditoría de un área
+  app/index.astro          la herramienta
 ```
 
 ## Estado
 
-Funciona y se puede usar, pero es una demostración: la evidencia es la de la
-empresa ficticia. Falta para que sea un producto:
+Funciona de punta a punta, sin IA y sin servidor. Falta para que sea un
+producto terminado:
 
-- Cargar evidencia propia (necesita backend y autenticación).
+- Que la IA mejore la redacción de los documentos, sobre las respuestas de la
+  entrevista (hoy son correctos pero planos).
 - El informe de auditoría redactado y firmable.
 - El ciclo completo de no conformidades: causa raíz, acción, verificación de
   eficacia.
 - Requisitos legales por jurisdicción — las matrices de ambiente y seguridad
-  dependen de la provincia y del municipio.
+  salen como esqueleto, porque dependen de la provincia y del municipio.
+- Compartir entre personas, que exigiría sacar los datos del navegador.
 
 ---
 

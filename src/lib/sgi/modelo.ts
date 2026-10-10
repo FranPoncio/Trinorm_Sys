@@ -104,6 +104,16 @@ export interface Evidencia {
   tipo: TipoEvidencia;
   /** Requisitos que esta evidencia ayuda a cubrir (`Requisito.id`). */
   cubre: string[];
+  /**
+   * Qué evidencias pedidas (`RequisitoEvidencia.clave`) prueba ésta.
+   *
+   * Opcional a propósito: sin él, la evidencia cuenta para cualquiera de su
+   * mismo tipo dentro del requisito, que es como funciona la demostración.
+   * Con él, cuenta sólo para esas claves. Importa cuando el requisito pide
+   * dos registros distintos: un acta de revisión no prueba la capacitación
+   * sólo porque los dos sean registros.
+   */
+  claves?: string[];
   /** ISO 8601 `YYYY-MM-DD`. Fecha del registro o de última revisión. */
   fecha: string;
   proceso: string;
@@ -215,7 +225,9 @@ export function evaluar(req: Requisito, evidencias: Evidencia[], hoy: Date): Cob
 
   for (const pedida of req.evidencias) {
     // El tipo tiene que coincidir: un procedimiento no reemplaza a un acta.
-    const candidatas = propias.filter((e) => e.tipo === pedida.tipo);
+    const candidatas = propias.filter(
+      (e) => e.tipo === pedida.tipo && (e.claves === undefined || e.claves.includes(pedida.clave)),
+    );
     const vigentes = candidatas.filter((e) => vigente(e, pedida, hoy));
 
     if (vigentes.length > 0) {

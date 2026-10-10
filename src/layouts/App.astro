@@ -49,7 +49,10 @@ const { titulo, descripcion, activo } = Astro.props;
 
     <div class="cuerpo">
       <nav class="lateral no-imprimir" aria-label="Secciones">
-        <p class="rotulo grupo">Sistema</p>
+        <p class="rotulo grupo">Herramienta</p>
+        <a href={conBase('/app/')} class="enlace">Mis organizaciones →</a>
+
+        <p class="rotulo grupo">Demostración</p>
         <a href={conBase('/')} class:list={['enlace', { activo: activo === 'tablero' }]}>
           Tablero
         </a>

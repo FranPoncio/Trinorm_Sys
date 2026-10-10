@@ -28,6 +28,7 @@ const req = (over: Partial<Requisito> = {}): Requisito => ({
     { clave: 'reg', tipo: 'registro', descripcion: 'Un acta.', vigenciaMeses: 12 },
   ],
   preguntas: [],
+  procesos: [],
   ...over,
 });
 

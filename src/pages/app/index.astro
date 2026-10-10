@@ -1,0 +1,20 @@
+---
+/**
+ * La herramienta: una organización propia, su entrevista, sus documentos y
+ * su ruta de certificación.
+ *
+ * Es una sola página con rutas por hash (`#/o/<id>/documentos`). En un sitio
+ * estático no se pueden generar páginas para organizaciones que no existen
+ * hasta que alguien las carga, así que el cliente decide qué dibujar.
+ */
+import Herramienta from '../../layouts/Herramienta.astro';
+---
+
+<Herramienta
+  titulo="Mis organizaciones · SGI Trinorma"
+  descripcion="Cargá una organización, contá cómo trabaja y obtené los documentos de ISO 9001, 14001 y 45001, lo que falta y la ruta hasta la certificación. Los datos quedan en tu navegador."
+>
+  <script>
+    import '../../app/main.ts';
+  </script>
+</Herramienta>

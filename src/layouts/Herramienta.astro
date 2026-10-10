@@ -1,0 +1,87 @@
+---
+/**
+ * El armazón de la herramienta (la parte que trabaja con una organización
+ * propia). Se separa del de la demostración porque son dos cosas distintas:
+ * la demo es una empresa inventada con evidencia armada; esto es la
+ * herramienta, donde la persona carga lo suyo.
+ *
+ * Las dos comparten barra, paleta y tipografía, así que se leen como una
+ * sola aplicación.
+ */
+import '../styles/global.css';
+import '../styles/herramienta.css';
+import { conBase } from '../lib/url';
+
+interface Props {
+  titulo: string;
+  descripcion: string;
+}
+const { titulo, descripcion } = Astro.props;
+---
+
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{titulo}</title>
+    <meta name="description" content={descripcion} />
+    <meta property="og:title" content={titulo} />
+    <meta property="og:description" content={descripcion} />
+    <meta property="og:type" content="website" />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%230f1110'/%3E%3Cpath d='M7 22V10h4l5 8 5-8h4v12' stroke='%23c08552' stroke-width='2.5' fill='none'/%3E%3C/svg%3E" />
+  </head>
+  <body class="herramienta">
+    <header class="barra no-imprimir">
+      <a class="marca" href={conBase('/app/')}>
+        <span class="sigla">SGI</span>
+        <span class="nombre">Trinorma</span>
+      </a>
+      <p class="lema">ISO 9001 · 14001 · 45001</p>
+      <nav class="barra-enlaces" aria-label="Aplicación">
+        <a href={conBase('/app/')}>Mis organizaciones</a>
+        <a href={conBase('/')}>Ver la demostración</a>
+      </nav>
+    </header>
+
+    <div id="sin-almacen" class="aviso-rojo banda" role="alert" hidden>
+      Este navegador no deja guardar datos (¿ventana privada o almacenamiento bloqueado?). Podés
+      usar la herramienta, pero <strong>todo se pierde al cerrar la pestaña</strong>. Exportá un
+      respaldo antes de salir.
+    </div>
+
+    <main class="principal-app">
+      <noscript>
+        <p class="aviso-rojo">
+          Esta herramienta necesita JavaScript: es una aplicación que guarda los datos en tu
+          navegador y no tiene servidor. Si querés ver cómo funciona sin activarlo, la
+          <a href={conBase('/')}>demostración</a> se lee sin JavaScript.
+        </p>
+      </noscript>
+
+      <div id="raiz" aria-live="off"></div>
+      <div id="aviso" class="aviso-flotante" role="status" aria-live="polite" hidden></div>
+
+      <footer class="pie">
+        <p>
+          <strong>Tus datos no salen de este navegador.</strong> No hay servidor ni cuenta: lo que
+          cargues vive acá y nadie más lo ve. Los datos de un sistema de gestión suelen ser del
+          cliente o del empleador; por eso la herramienta no los guarda en ningún otro lado.
+        </p>
+        <p>
+          Los documentos son borradores a revisar, no documentos listos para auditar: describen lo
+          que la organización contó y dejan marcado lo que falta. No hay texto de las normas ISO;
+          se usan numeración y título de cláusula como referencia, y la norma se consulta en su
+          edición oficial.
+        </p>
+        <p class="firma">
+          Francisco Poncio ·
+          <a href="https://github.com/FranPoncio/Trinorm_Sys">código</a> ·
+          <a href="https://franponcio.github.io/">portfolio</a>
+        </p>
+      </footer>
+    </main>
+
+    <slot />
+  </body>
+</html>
